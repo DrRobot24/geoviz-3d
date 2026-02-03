@@ -1,0 +1,5 @@
+{
+  "name": "GeoViz: Simulatore Reinterro 3D",
+  "description": "Un'applicazione professionale per la visualizzazione 3D di scavi rettangolari con rivestimento in tessuto-non-tessuto (TNT), calcolo delle superfici e presentazione tecnica per i clienti.",
+  "requestFramePermissions": []
+}
