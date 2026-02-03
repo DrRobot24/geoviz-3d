@@ -18,6 +18,7 @@ export interface ExcavationDimensions {
   length: number;
   width: number;
   depth: number;
+  sfido: number; // Sovrapposizione per incollaggio (in metri)
 }
 
 export interface SurfaceColors {
@@ -30,6 +31,8 @@ export interface SurfaceData {
   id: string;
   label: string;
   area: number;
+  areaConSfido: number; // Area totale incluso sfido
   color: string;
   dimensions: string;
+  dimensionsConSfido: string; // Dimensioni con sfido
 }

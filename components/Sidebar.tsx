@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Ruler, Layers, Calculator, Building2, Palette, FileDown } from 'lucide-react';
+import { Ruler, Layers, Calculator, Building2, Palette, FileDown, Scissors } from 'lucide-react';
 import { ExcavationDimensions, SurfaceData, SurfaceColors } from '../types';
 
 interface SidebarProps {
@@ -23,6 +23,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const totalArea = surfaces.reduce((acc, s) => {
     if (s.id === 'bottom') return acc + s.area;
     return acc + (s.area * 2);
+  }, 0);
+
+  const totalAreaConSfido = surfaces.reduce((acc, s) => {
+    if (s.id === 'bottom') return acc + s.areaConSfido;
+    return acc + (s.areaConSfido * 2);
   }, 0);
 
   const handleDimChange = (key: keyof ExcavationDimensions, value: string) => {
@@ -76,6 +81,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </section>
 
+        {/* INPUT SFIDO */}
+        <section className="space-y-4">
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <Scissors className="w-3.5 h-3.5 text-slate-300" />
+            Sfido / Sormonto (m)
+          </h3>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-amber-700 uppercase ml-1">Sfido per lato</label>
+              <input 
+                type="number" 
+                step="0.1"
+                min="0"
+                value={dimensions.sfido}
+                onChange={(e) => handleDimChange('sfido', e.target.value)}
+                className="bg-white border border-amber-300 rounded-xl px-4 py-2.5 font-bold text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+              />
+              <p className="text-[10px] text-amber-600 mt-1 italic">
+                Sovrapposizione aggiuntiva per incollaggio alle pareti
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* INPUT COLORI E RIEPILOGO MQ */}
         <section className="space-y-4">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -95,12 +124,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     />
                     <span className="font-extrabold text-slate-700 text-xs tracking-tight">{s.label}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-indigo-600 font-black text-xs">{s.area.toFixed(2)} m²</span>
-                  </div>
                 </div>
-                <div className="text-[10px] text-slate-400 font-medium ml-11">
-                  Misure facciata: {s.dimensions}
+                <div className="ml-11 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-slate-400">Area teorica:</span>
+                    <span className="text-slate-600 font-bold text-xs">{s.area.toFixed(2)} m²</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[10px] text-amber-600 font-medium">Con sfido:</span>
+                    <span className="text-amber-600 font-black text-xs">{s.areaConSfido.toFixed(2)} m²</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-medium pt-1">
+                    Misure: {s.dimensions} → {s.dimensionsConSfido}
+                  </div>
                 </div>
               </div>
             ))}
@@ -114,11 +150,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div className="relative z-10">
             <h3 className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] mb-3">Totale Fornitura TNT</h3>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-black tracking-tighter">{totalArea.toFixed(2)}</span>
-              <span className="text-lg text-slate-500 font-black">m²</span>
+            
+            <div className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <span className="text-slate-400 text-xs">Area teorica:</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-slate-300">{totalArea.toFixed(2)}</span>
+                  <span className="text-sm text-slate-500">m²</span>
+                </div>
+              </div>
+              
+              <div className="border-t border-slate-700 pt-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-amber-400 text-xs font-bold">CON SFIDO ({dimensions.sfido}m):</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black tracking-tighter text-amber-400">{totalAreaConSfido.toFixed(2)}</span>
+                    <span className="text-lg text-amber-500 font-black">m²</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="text-[9px] text-slate-400 mt-2 italic">* Calcolo basato sulle 5 facciate interne</p>
+            
+            <p className="text-[9px] text-slate-400 mt-3 italic">* Calcolo basato sulle 5 facciate + sfido per incollaggio</p>
           </div>
         </section>
       </div>
