@@ -225,6 +225,45 @@ const App: React.FC = () => {
     const shortWall2Y = startY + sDepth;
     drawSurface(shortWall2X, shortWall2Y, sDepth, sWidth, sideShortColor, 'PARETE CORTA 2', sideShortArea, `${depth.toFixed(1)}m × ${width.toFixed(1)}m`);
 
+    // 6. STRISCE SFIDO (sul bordo esterno delle pareti)
+    const sSfido = sfido * scale;
+    const sfidoColorPDF = colors.sfido || '#f59e0b';
+    const sfidoColorR = parseInt(sfidoColorPDF.slice(1, 3), 16);
+    const sfidoColorG = parseInt(sfidoColorPDF.slice(3, 5), 16);
+    const sfidoColorB = parseInt(sfidoColorPDF.slice(5, 7), 16);
+    
+    if (sfido > 0 && sSfido > 1) {
+      pdf.setDrawColor(Math.max(0, sfidoColorR - 50), Math.max(0, sfidoColorG - 50), Math.max(0, sfidoColorB - 50));
+      pdf.setLineWidth(0.3);
+      
+      // Sfido parete lunga 1 (sopra)
+      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
+      pdf.rect(longWall1X, longWall1Y - sSfido, sLength, sSfido, 'FD');
+      
+      // Etichetta sfido 1 - testo scuro
+      pdf.setTextColor(80, 50, 0);
+      pdf.setFontSize(Math.max(5, Math.min(7, sSfido * 0.6)));
+      pdf.setFont('helvetica', 'bold');
+      if (sSfido > 4) {
+        pdf.text(`SFIDO ${(length * sfido).toFixed(1)} m²`, longWall1X + sLength/2, longWall1Y - sSfido/2 + 1, { align: 'center' });
+      }
+
+      // Sfido parete lunga 2 (sotto)
+      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
+      pdf.rect(longWall2X, longWall2Y + sDepth, sLength, sSfido, 'FD');
+      if (sSfido > 4) {
+        pdf.text(`SFIDO ${(length * sfido).toFixed(1)} m²`, longWall2X + sLength/2, longWall2Y + sDepth + sSfido/2 + 1, { align: 'center' });
+      }
+
+      // Sfido parete corta 1 (sinistra)
+      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
+      pdf.rect(shortWall1X - sSfido, shortWall1Y, sSfido, sWidth, 'FD');
+
+      // Sfido parete corta 2 (destra)
+      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
+      pdf.rect(shortWall2X + sDepth, shortWall2Y, sSfido, sWidth, 'FD');
+    }
+
     // Linee di piegatura tratteggiate
     pdf.setDrawColor(100, 116, 139);
     pdf.setLineWidth(0.3);
@@ -528,6 +567,76 @@ const App: React.FC = () => {
     frontWall.forEach(v => pdf.lineTo(v[0], v[1]));
     pdf.fill();
     
+    // 6. STRISCE SFIDO (estensione delle pareti verso l'esterno con lieve inclinazione)
+    if (sfido > 0) {
+      const sfidoColor = colors.sfido || '#f59e0b';
+      const sSfido = sfido * scale;
+      const sfidoLift = 2; // Leggera inclinazione verso l'alto per dare effetto 3D
+      
+      // Colore sfido base
+      const sfidoR = parseInt(sfidoColor.slice(1, 3), 16);
+      const sfidoG = parseInt(sfidoColor.slice(3, 5), 16);
+      const sfidoB = parseInt(sfidoColor.slice(5, 7), 16);
+      
+      // Vertici esterni per lo sfido (esteso oltre il bordo con leggera elevazione)
+      const sfidoVertices = {
+        E_out: toIso(-sL/2 - sSfido, sD + sfidoLift, -sW/2 - sSfido),
+        F_out: toIso(sL/2 + sSfido, sD + sfidoLift, -sW/2 - sSfido),
+        G_out: toIso(sL/2 + sSfido, sD + sfidoLift, sW/2 + sSfido),
+        H_out: toIso(-sL/2 - sSfido, sD + sfidoLift, sW/2 + sSfido),
+      };
+      
+      // Striscia sfido - Parete posteriore (retro, lunga) - colore più scuro
+      pdf.setFillColor(Math.max(0, sfidoR - 40), Math.max(0, sfidoG - 40), Math.max(0, sfidoB - 40));
+      const sfidoBack = [vertices.E, vertices.F, sfidoVertices.F_out, sfidoVertices.E_out];
+      pdf.moveTo(sfidoBack[0][0], sfidoBack[0][1]);
+      sfidoBack.forEach(v => pdf.lineTo(v[0], v[1]));
+      pdf.fill();
+      
+      // Striscia sfido - Parete sinistra (corta) - colore medio
+      pdf.setFillColor(Math.max(0, sfidoR - 20), Math.max(0, sfidoG - 20), Math.max(0, sfidoB - 20));
+      const sfidoLeft = [vertices.E, sfidoVertices.E_out, sfidoVertices.H_out, vertices.H];
+      pdf.moveTo(sfidoLeft[0][0], sfidoLeft[0][1]);
+      sfidoLeft.forEach(v => pdf.lineTo(v[0], v[1]));
+      pdf.fill();
+      
+      // Striscia sfido - Parete destra (corta) - colore più chiaro
+      pdf.setFillColor(Math.min(255, sfidoR + 20), Math.min(255, sfidoG + 20), Math.min(255, sfidoB + 20));
+      const sfidoRight = [vertices.F, vertices.G, sfidoVertices.G_out, sfidoVertices.F_out];
+      pdf.moveTo(sfidoRight[0][0], sfidoRight[0][1]);
+      sfidoRight.forEach(v => pdf.lineTo(v[0], v[1]));
+      pdf.fill();
+      
+      // Striscia sfido - Parete frontale (fronte, lunga) - colore base
+      pdf.setFillColor(sfidoR, sfidoG, sfidoB);
+      const sfidoFront = [vertices.H, sfidoVertices.H_out, sfidoVertices.G_out, vertices.G];
+      pdf.moveTo(sfidoFront[0][0], sfidoFront[0][1]);
+      sfidoFront.forEach(v => pdf.lineTo(v[0], v[1]));
+      pdf.fill();
+      
+      // Bordi sfido
+      pdf.setDrawColor(100, 80, 0);
+      pdf.setLineWidth(0.3);
+      // Bordo esterno
+      pdf.line(sfidoVertices.E_out[0], sfidoVertices.E_out[1], sfidoVertices.F_out[0], sfidoVertices.F_out[1]);
+      pdf.line(sfidoVertices.F_out[0], sfidoVertices.F_out[1], sfidoVertices.G_out[0], sfidoVertices.G_out[1]);
+      pdf.line(sfidoVertices.G_out[0], sfidoVertices.G_out[1], sfidoVertices.H_out[0], sfidoVertices.H_out[1]);
+      pdf.line(sfidoVertices.H_out[0], sfidoVertices.H_out[1], sfidoVertices.E_out[0], sfidoVertices.E_out[1]);
+      // Connessioni al bordo scavo
+      pdf.line(vertices.E[0], vertices.E[1], sfidoVertices.E_out[0], sfidoVertices.E_out[1]);
+      pdf.line(vertices.F[0], vertices.F[1], sfidoVertices.F_out[0], sfidoVertices.F_out[1]);
+      pdf.line(vertices.G[0], vertices.G[1], sfidoVertices.G_out[0], sfidoVertices.G_out[1]);
+      pdf.line(vertices.H[0], vertices.H[1], sfidoVertices.H_out[0], sfidoVertices.H_out[1]);
+      
+      // Etichetta sfido sulla striscia retro
+      pdf.setTextColor(80, 50, 0);
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'bold');
+      const sfidoLabelBack = toIso(0, sD + sfidoLift/2, -sW/2 - sSfido/2);
+      pdf.text(`SFIDO`, sfidoLabelBack[0] - 5, sfidoLabelBack[1]);
+      pdf.text(`${sfidoData.totale.toFixed(1)} m²`, sfidoLabelBack[0] - 7, sfidoLabelBack[1] + 4);
+    }
+    
     // Bordi dello scavo
     pdf.setDrawColor(50, 50, 50);
     pdf.setLineWidth(0.5);
@@ -592,49 +701,45 @@ const App: React.FC = () => {
     const leftCenter = toIso(-sL/2, sD/2, 0);
     const rightCenter = toIso(sL/2, sD/2, 0);
     
+    // Offset per evitare sovrapposizioni con sfido
+    const sfidoOffset = sfido > 0 ? 15 : 0;
+    
     // FRECCIA 1: Parete Lunga (retro) - in alto a sinistra
-    drawArrow(margin + 10, yPos + 10, backCenter[0] - 15, backCenter[1] - 5, 
+    drawArrow(margin + 5, yPos + 5, backCenter[0] - 20, backCenter[1] - 10, 
       `${sideLongArea.toFixed(2)} m²`, -5, -3);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Lunga', margin + 5, yPos + 17);
+    pdf.text('Parete Lunga', margin, yPos + 12);
     
     // FRECCIA 2: Parete Corta (sinistra) - a sinistra
-    drawArrow(margin + 5, isoCenterY + 20, leftCenter[0] - 5, leftCenter[1], 
+    drawArrow(margin + 5, isoCenterY + 30 + sfidoOffset, leftCenter[0] - 10, leftCenter[1] + 5, 
       `${sideShortArea.toFixed(2)} m²`, -5, -3);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Corta', margin, isoCenterY + 27);
+    pdf.text('Parete Corta', margin, isoCenterY + 37 + sfidoOffset);
     
     // FRECCIA 3: Base - in basso
-    drawArrow(isoCenterX, isoCenterY + sD/2 + 35, baseCenter[0], baseCenter[1] + 10, 
+    drawArrow(isoCenterX, isoCenterY + sD/2 + 45, baseCenter[0], baseCenter[1] + 10, 
       `${bottomArea.toFixed(2)} m²`, -12, 12);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Base', isoCenterX - 5, isoCenterY + sD/2 + 48);
+    pdf.text('Base', isoCenterX - 5, isoCenterY + sD/2 + 58);
     
     // FRECCIA 4: Parete Corta (destra) - a destra
-    drawArrow(pageWidth - margin - 5, isoCenterY - 10, rightCenter[0] + 10, rightCenter[1], 
+    drawArrow(pageWidth - margin - 5, isoCenterY - 15, rightCenter[0] + 15, rightCenter[1] - 5, 
       `${sideShortArea.toFixed(2)} m²`, -25, -3);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Corta', pageWidth - margin - 22, isoCenterY - 3);
+    pdf.text('Parete Corta', pageWidth - margin - 22, isoCenterY - 8);
     
     // FRECCIA 5: Parete Lunga (fronte) - a destra in basso
-    drawArrow(pageWidth - margin - 10, isoCenterY + 45, frontCenter[0] + 15, frontCenter[1] + 5, 
+    drawArrow(pageWidth - margin - 10, isoCenterY + 55 + sfidoOffset, frontCenter[0] + 20, frontCenter[1] + 10, 
       `${sideLongArea.toFixed(2)} m²`, -30, -3);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Lunga', pageWidth - margin - 25, isoCenterY + 52);
+    pdf.text('Parete Lunga', pageWidth - margin - 25, isoCenterY + 62 + sfidoOffset);
     
-    // Etichetta "BOCCA DI SCAVO (APERTA)"
-    pdf.setTextColor(100, 116, 139);
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'italic');
-    const topCenter = toIso(0, sD, 0);
-    pdf.text('BOCCA DI SCAVO (APERTA)', topCenter[0] - 25, topCenter[1] - 8);
-    
-    yPos = isoCenterY + 80;
+    yPos = isoCenterY + 90 + sfidoOffset;
 
     // ========== RIEPILOGO SPECIFICHE ==========
     pdf.setTextColor(30, 41, 59);
@@ -679,11 +784,16 @@ const App: React.FC = () => {
     pdf.text('Legenda:', margin + 5, yPos);
     
     let legendX = margin + 28;
-    const legendItems = [
+    const legendItems: Array<{color: string, name: string}> = [
       { color: bottomColor, name: 'Base' },
-      { color: sideLongColor, name: 'Pareti Lunghe' },
-      { color: sideShortColor, name: 'Pareti Corte' },
+      { color: sideLongColor, name: 'P. Lunghe' },
+      { color: sideShortColor, name: 'P. Corte' },
     ];
+    
+    // Aggiungi sfido alla legenda se presente
+    if (sfido > 0) {
+      legendItems.push({ color: colors.sfido || '#f59e0b', name: 'Sfido' });
+    }
     
     legendItems.forEach((item) => {
       pdf.setFillColor(
