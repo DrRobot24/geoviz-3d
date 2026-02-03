@@ -23,52 +23,42 @@ const App: React.FC = () => {
   const [colors, setColors] = useState<SurfaceColors>({
     bottom: '#3b82f6',
     sides_long: '#ef4444',
-    sides_short: '#10b981'
+    sides_short: '#10b981',
+    sfido: '#f59e0b' // Colore ambra per lo sfido
   });
 
   const [isExploded, setIsExploded] = useState(false);
 
   // Calcolo dinamico delle superfici basato sugli input
   const surfaces = useMemo((): SurfaceData[] => {
-    const { length, width, depth, sfido } = dimensions;
-    
-    // Dimensioni con sfido (sfido su ogni lato)
-    const lengthConSfido = length + sfido * 2;
-    const widthConSfido = width + sfido * 2;
-    const depthConSfido = depth + sfido; // Solo un lato per la profondità (bordo superiore)
+    const { length, width, depth } = dimensions;
     
     return [
       { 
         id: 'bottom', 
         label: 'Superficie Inferiore (Base)', 
         area: length * width,
-        areaConSfido: lengthConSfido * widthConSfido,
         color: colors.bottom,
-        dimensions: `${length.toFixed(2)} x ${width.toFixed(2)} m`,
-        dimensionsConSfido: `${lengthConSfido.toFixed(2)} x ${widthConSfido.toFixed(2)} m`
+        dimensions: `${length.toFixed(2)} x ${width.toFixed(2)} m`
       },
       { 
         id: 'sides_long', 
         label: 'Pareti Laterali Lunghe (x2)', 
         area: length * depth,
-        areaConSfido: lengthConSfido * depthConSfido,
         color: colors.sides_long,
-        dimensions: `${length.toFixed(2)} x ${depth.toFixed(2)} m`,
-        dimensionsConSfido: `${lengthConSfido.toFixed(2)} x ${depthConSfido.toFixed(2)} m`
+        dimensions: `${length.toFixed(2)} x ${depth.toFixed(2)} m`
       },
       { 
         id: 'sides_short', 
         label: 'Pareti Laterali Corte (x2)', 
         area: width * depth,
-        areaConSfido: widthConSfido * depthConSfido,
         color: colors.sides_short,
-        dimensions: `${width.toFixed(2)} x ${depth.toFixed(2)} m`,
-        dimensionsConSfido: `${widthConSfido.toFixed(2)} x ${depthConSfido.toFixed(2)} m`
+        dimensions: `${width.toFixed(2)} x ${depth.toFixed(2)} m`
       }
     ];
   }, [dimensions, colors]);
 
-  // Calcola area totale
+  // Calcola area totale delle superfici (senza sfido)
   const totalArea = useMemo(() => {
     return surfaces.reduce((acc, s) => {
       if (s.id === 'bottom') return acc + s.area;
@@ -76,13 +66,28 @@ const App: React.FC = () => {
     }, 0);
   }, [surfaces]);
 
-  // Calcola area totale CON SFIDO
+  // Calcola area SFIDO separatamente (strisce sul bordo superiore)
+  const sfidoData = useMemo(() => {
+    const { length, width, sfido } = dimensions;
+    // Sfido pareti lunghe: lunghezza × sfido × 2 pareti
+    const sfidoLunghe = length * sfido * 2;
+    // Sfido pareti corte: larghezza × sfido × 2 pareti
+    const sfidoCorte = width * sfido * 2;
+    // Totale sfido
+    const totale = sfidoLunghe + sfidoCorte;
+    
+    return {
+      sfidoLunghe,
+      sfidoCorte,
+      totale,
+      sfido
+    };
+  }, [dimensions]);
+
+  // Totale generale (superfici + sfido)
   const totalAreaConSfido = useMemo(() => {
-    return surfaces.reduce((acc, s) => {
-      if (s.id === 'bottom') return acc + s.areaConSfido;
-      return acc + (s.areaConSfido * 2);
-    }, 0);
-  }, [surfaces]);
+    return totalArea + sfidoData.totale;
+  }, [totalArea, sfidoData]);
 
   // Funzione per generare il PDF con vista 2D srotolata
   const handleExportPDF = useCallback(async () => {
@@ -265,105 +270,114 @@ const App: React.FC = () => {
     pdf.rect(margin, yPos - 4, pageWidth - margin * 2, 7, 'F');
     pdf.setTextColor(71, 85, 105);
     pdf.text('Colore', margin + 3, yPos);
-    pdf.text('Superficie', margin + 18, yPos);
-    pdf.text('Dim. teoriche', margin + 55, yPos);
-    pdf.text('Area teor.', margin + 90, yPos);
-    pdf.text('Dim. con sfido', margin + 115, yPos);
-    pdf.text('Area sfido', margin + 150, yPos);
-    pdf.text('Tot.', margin + 175, yPos);
+    pdf.text('Superficie', margin + 20, yPos);
+    pdf.text('Dimensioni', margin + 70, yPos);
+    pdf.text('Area unit.', margin + 115, yPos);
+    pdf.text('Qtà', margin + 145, yPos);
+    pdf.text('Totale', margin + 160, yPos);
     yPos += 8;
 
-    // Calcola dimensioni con sfido
-    const lengthConSfido = length + sfido * 2;
-    const widthConSfido = width + sfido * 2;
-    const depthConSfido = depth + sfido;
+    // Colore sfido
+    const sfidoColor = colors.sfido || '#f59e0b';
 
-    // Righe tabella
+    // Righe tabella - SUPERFICI
     pdf.setFont('helvetica', 'normal');
-    const surfaceData = [
-      { 
-        color: bottomColor, 
-        name: 'Base', 
-        dims: `${length.toFixed(1)}×${width.toFixed(1)}`, 
-        area: bottomArea, 
-        dimsConSfido: `${lengthConSfido.toFixed(1)}×${widthConSfido.toFixed(1)}`,
-        areaConSfido: lengthConSfido * widthConSfido,
-        qty: 1 
-      },
-      { 
-        color: sideLongColor, 
-        name: 'Pareti Lunghe', 
-        dims: `${length.toFixed(1)}×${depth.toFixed(1)}`, 
-        area: sideLongArea, 
-        dimsConSfido: `${lengthConSfido.toFixed(1)}×${depthConSfido.toFixed(1)}`,
-        areaConSfido: lengthConSfido * depthConSfido,
-        qty: 2 
-      },
-      { 
-        color: sideShortColor, 
-        name: 'Pareti Corte', 
-        dims: `${width.toFixed(1)}×${depth.toFixed(1)}`, 
-        area: sideShortArea, 
-        dimsConSfido: `${widthConSfido.toFixed(1)}×${depthConSfido.toFixed(1)}`,
-        areaConSfido: widthConSfido * depthConSfido,
-        qty: 2 
-      },
+    const surfaceDataPDF = [
+      { color: bottomColor, name: 'Base', dims: `${length.toFixed(1)} × ${width.toFixed(1)} m`, area: bottomArea, qty: 1 },
+      { color: sideLongColor, name: 'Pareti Lunghe', dims: `${length.toFixed(1)} × ${depth.toFixed(1)} m`, area: sideLongArea, qty: 2 },
+      { color: sideShortColor, name: 'Pareti Corte', dims: `${width.toFixed(1)} × ${depth.toFixed(1)} m`, area: sideShortArea, qty: 2 },
     ];
 
-    surfaceData.forEach((s) => {
+    surfaceDataPDF.forEach((s) => {
       pdf.setFillColor(
         parseInt(s.color.slice(1, 3), 16),
         parseInt(s.color.slice(3, 5), 16),
         parseInt(s.color.slice(5, 7), 16)
       );
-      pdf.rect(margin + 3, yPos - 3, 8, 5, 'F');
+      pdf.rect(margin + 3, yPos - 3, 10, 5, 'F');
       
       pdf.setTextColor(71, 85, 105);
-      pdf.setFontSize(8);
-      pdf.text(s.name, margin + 18, yPos);
-      pdf.text(s.dims, margin + 55, yPos);
-      pdf.text(`${s.area.toFixed(2)} m²`, margin + 90, yPos);
-      pdf.setTextColor(217, 119, 6); // amber-600
-      pdf.text(s.dimsConSfido, margin + 115, yPos);
-      pdf.text(`${s.areaConSfido.toFixed(2)} m²`, margin + 150, yPos);
-      pdf.setTextColor(71, 85, 105);
+      pdf.setFontSize(9);
+      pdf.text(s.name, margin + 20, yPos);
+      pdf.text(s.dims, margin + 70, yPos);
+      pdf.text(`${s.area.toFixed(2)} m²`, margin + 115, yPos);
+      pdf.text(`×${s.qty}`, margin + 145, yPos);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`${(s.areaConSfido * s.qty).toFixed(2)}`, margin + 175, yPos);
+      pdf.text(`${(s.area * s.qty).toFixed(2)} m²`, margin + 160, yPos);
       pdf.setFont('helvetica', 'normal');
       yPos += 7;
     });
 
+    // Subtotale superfici
+    pdf.setDrawColor(200, 200, 200);
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
     yPos += 5;
+    pdf.setTextColor(71, 85, 105);
+    pdf.setFontSize(9);
+    pdf.text('Subtotale superfici:', margin + 70, yPos);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${totalArea.toFixed(2)} m²`, margin + 160, yPos);
+    pdf.setFont('helvetica', 'normal');
+    yPos += 10;
 
-    // Calcola totale con sfido
-    const totalAreaConSfidoPDF = surfaceData.reduce((acc, s) => acc + (s.areaConSfido * s.qty), 0);
-
-    // Box Totale
-    pdf.setFillColor(30, 41, 59);
-    pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 28, 2, 2, 'F');
+    // SEZIONE SFIDO
+    pdf.setFillColor(254, 243, 199); // amber-100
+    pdf.rect(margin, yPos - 4, pageWidth - margin * 2, 25, 'F');
     
-    // Area teorica
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(146, 64, 14); // amber-800
+    pdf.text(`SFIDO (${sfido}m sul bordo superiore)`, margin + 5, yPos + 2);
+    yPos += 8;
+    
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    
+    // Sfido pareti lunghe
+    pdf.setFillColor(
+      parseInt(sfidoColor.slice(1, 3), 16),
+      parseInt(sfidoColor.slice(3, 5), 16),
+      parseInt(sfidoColor.slice(5, 7), 16)
+    );
+    pdf.rect(margin + 5, yPos - 2, 8, 4, 'F');
+    pdf.setTextColor(146, 64, 14);
+    pdf.text(`Sfido pareti lunghe: ${length.toFixed(1)}m × ${sfido}m × 2 =`, margin + 18, yPos);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${sfidoData.sfidoLunghe.toFixed(2)} m²`, margin + 100, yPos);
+    yPos += 6;
+    
+    // Sfido pareti corte
+    pdf.setFont('helvetica', 'normal');
+    pdf.rect(margin + 5, yPos - 2, 8, 4, 'F');
+    pdf.text(`Sfido pareti corte: ${width.toFixed(1)}m × ${sfido}m × 2 =`, margin + 18, yPos);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${sfidoData.sfidoCorte.toFixed(2)} m²`, margin + 100, yPos);
+    
+    // Totale sfido
+    pdf.setFontSize(10);
+    pdf.text(`Totale sfido: ${sfidoData.totale.toFixed(2)} m²`, margin + 130, yPos - 3);
+    
+    yPos += 10;
+
+    // Box Totale FINALE
+    pdf.setFillColor(30, 41, 59);
+    pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 22, 2, 2, 'F');
+    
+    // Calcolo
     pdf.setTextColor(148, 163, 184);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Area teorica (senza sfido):', margin + 8, yPos + 8);
-    pdf.setFontSize(12);
-    pdf.text(`${totalArea.toFixed(2)} m²`, margin + 55, yPos + 8);
+    pdf.text(`Superfici: ${totalArea.toFixed(2)} m² + Sfido: ${sfidoData.totale.toFixed(2)} m²`, margin + 8, yPos + 8);
     
-    // Area con sfido (evidenziata)
-    pdf.setTextColor(251, 191, 36); // amber-400
+    // Totale
+    pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(`TOTALE CON SFIDO (${sfido}m/lato):`, margin + 8, yPos + 18);
+    pdf.text('TOTALE FORNITURA TNT:', margin + 8, yPos + 17);
     
-    pdf.setFontSize(20);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${totalAreaConSfidoPDF.toFixed(2)} m²`, margin + 75, yPos + 20);
-    
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'italic');
-    pdf.setTextColor(148, 163, 184);
-    pdf.text('* Include sfido per incollaggio alle pareti', pageWidth - margin - 55, yPos + 24);
+    pdf.setFontSize(18);
+    pdf.setTextColor(251, 191, 36); // amber-400
+    pdf.text(`${totalAreaConSfido.toFixed(2)} m²`, margin + 70, yPos + 17);
 
     // Footer pagina 1
     pdf.setTextColor(148, 163, 184);
@@ -691,7 +705,7 @@ const App: React.FC = () => {
 
     // Salva il PDF
     pdf.save(`GeoViz_Scavo_${now.toISOString().slice(0,10)}.pdf`);
-  }, [dimensions, colors, totalArea]);
+  }, [dimensions, colors, totalArea, sfidoData, totalAreaConSfido]);
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full bg-slate-100 overflow-hidden text-slate-900">
@@ -700,6 +714,9 @@ const App: React.FC = () => {
         surfaces={surfaces} 
         dimensions={dimensions} 
         colors={colors}
+        sfidoData={sfidoData}
+        totalArea={totalArea}
+        totalAreaConSfido={totalAreaConSfido}
         onDimensionsChange={setDimensions}
         onColorsChange={setColors}
         onExportPDF={handleExportPDF}
@@ -754,7 +771,8 @@ const App: React.FC = () => {
                     <Environment preset="city" />
                     <ExcavationModel 
                         dimensions={dimensions} 
-                        surfaces={surfaces} 
+                        surfaces={surfaces}
+                        colors={colors}
                         isExploded={isExploded}
                     />
                     

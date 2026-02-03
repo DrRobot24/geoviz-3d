@@ -25,14 +25,13 @@ export interface SurfaceColors {
   bottom: string;
   sides_long: string;
   sides_short: string;
+  sfido: string; // Colore dello sfido
 }
 
 export interface SurfaceData {
   id: string;
   label: string;
   area: number;
-  areaConSfido: number; // Area totale incluso sfido
   color: string;
   dimensions: string;
-  dimensionsConSfido: string; // Dimensioni con sfido
 }

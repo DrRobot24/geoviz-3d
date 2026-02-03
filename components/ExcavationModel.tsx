@@ -3,11 +3,12 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { ExcavationDimensions, SurfaceData } from '../types';
+import { ExcavationDimensions, SurfaceData, SurfaceColors } from '../types';
 
 interface ExcavationModelProps {
   dimensions: ExcavationDimensions;
   surfaces: SurfaceData[];
+  colors: SurfaceColors;
   isExploded?: boolean;
 }
 
@@ -67,8 +68,9 @@ const createTNTTexture = () => {
   return texture;
 };
 
-export const ExcavationModel: React.FC<ExcavationModelProps> = ({ dimensions, surfaces, isExploded = false }) => {
-  const { length, width, depth } = dimensions;
+export const ExcavationModel: React.FC<ExcavationModelProps> = ({ dimensions, surfaces, colors, isExploded = false }) => {
+  const { length, width, depth, sfido } = dimensions;
+  const sfidoColor = colors.sfido || '#f59e0b';
   const groupRef = useRef<THREE.Group>(null);
 
   // Creazione della texture TNT una sola volta
@@ -235,6 +237,78 @@ export const ExcavationModel: React.FC<ExcavationModelProps> = ({ dimensions, su
           {`${width.toFixed(1)}m × ${depth.toFixed(1)}m`}
         </Text>
       </group>
+
+      {/* 5. SFIDO - Strisce sul bordo superiore */}
+      {sfido > 0 && (
+        <>
+          {/* Sfido parete lunga 1 (fronte) */}
+          <mesh position={[0, depth + sfido/2, -width/2 - sfido/2]} castShadow>
+            <planeGeometry args={[length, sfido]} />
+            {TNTMaterial(sfidoColor, length, sfido)}
+          </mesh>
+          <Text 
+            position={[0, depth + sfido/2, -width/2 - sfido/2 - 0.05]} 
+            fontSize={0.12} 
+            color="white" 
+            fontWeight="bold"
+            outlineWidth={0.01}
+            outlineColor="rgba(0,0,0,0.8)"
+          >
+            SFIDO {(length * sfido).toFixed(2)} m²
+          </Text>
+
+          {/* Sfido parete lunga 2 (retro) */}
+          <mesh position={[0, depth + sfido/2, width/2 + sfido/2]} rotation={[0, Math.PI, 0]} castShadow>
+            <planeGeometry args={[length, sfido]} />
+            {TNTMaterial(sfidoColor, length, sfido)}
+          </mesh>
+          <Text 
+            position={[0, depth + sfido/2, width/2 + sfido/2 + 0.05]} 
+            rotation={[0, Math.PI, 0]}
+            fontSize={0.12} 
+            color="white" 
+            fontWeight="bold"
+            outlineWidth={0.01}
+            outlineColor="rgba(0,0,0,0.8)"
+          >
+            SFIDO {(length * sfido).toFixed(2)} m²
+          </Text>
+
+          {/* Sfido parete corta 1 (sinistra) */}
+          <mesh position={[-length/2 - sfido/2, depth + sfido/2, 0]} rotation={[0, Math.PI/2, 0]} castShadow>
+            <planeGeometry args={[width, sfido]} />
+            {TNTMaterial(sfidoColor, width, sfido)}
+          </mesh>
+          <Text 
+            position={[-length/2 - sfido/2 - 0.05, depth + sfido/2, 0]} 
+            rotation={[0, Math.PI/2, 0]}
+            fontSize={0.12} 
+            color="white" 
+            fontWeight="bold"
+            outlineWidth={0.01}
+            outlineColor="rgba(0,0,0,0.8)"
+          >
+            SFIDO {(width * sfido).toFixed(2)} m²
+          </Text>
+
+          {/* Sfido parete corta 2 (destra) */}
+          <mesh position={[length/2 + sfido/2, depth + sfido/2, 0]} rotation={[0, -Math.PI/2, 0]} castShadow>
+            <planeGeometry args={[width, sfido]} />
+            {TNTMaterial(sfidoColor, width, sfido)}
+          </mesh>
+          <Text 
+            position={[length/2 + sfido/2 + 0.05, depth + sfido/2, 0]} 
+            rotation={[0, -Math.PI/2, 0]}
+            fontSize={0.12} 
+            color="white" 
+            fontWeight="bold"
+            outlineWidth={0.01}
+            outlineColor="rgba(0,0,0,0.8)"
+          >
+            SFIDO {(width * sfido).toFixed(2)} m²
+          </Text>
+        </>
+      )}
 
       {/* 4. OPEN TOP (Dashed Outline) */}
       {!isExploded && (
