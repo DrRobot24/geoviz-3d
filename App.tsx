@@ -13,10 +13,10 @@ import { ExcavationDimensions, SurfaceColors, SurfaceData } from './types';
 const App: React.FC = () => {
   // Stato per le dimensioni dello scavo
   const [dimensions, setDimensions] = useState<ExcavationDimensions>({
-    length: 4,
-    width: 3,
-    depth: 2.5,
-    sfido: 1.5 // Sfido di default 1.5m per lato
+    length: 0,
+    width: 0,
+    depth: 0,
+    sfido: 0
   });
 
   // Stato per i colori personalizzati
@@ -94,726 +94,405 @@ const App: React.FC = () => {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 15;
+    const margin = 12;
     let yPos = margin;
 
-    // Header
-    pdf.setFillColor(79, 70, 229); // indigo-600
-    pdf.rect(0, 0, pageWidth, 40, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(22);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('GeoViz Dynamic', margin, 18);
-    
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Configuratore Scavo 3D - Report Tecnico', margin, 28);
-    
-    // Data e ora
+    // Data riferimento
     const now = new Date();
-    pdf.setFontSize(9);
-    pdf.text(`Data: ${now.toLocaleDateString('it-IT')} - Ora: ${now.toLocaleTimeString('it-IT')}`, pageWidth - margin - 55, 28);
-
-    yPos = 50;
-
-    // Titolo sezione disegno
-    pdf.setTextColor(30, 41, 59);
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Vista Sviluppata delle Superfici TNT', margin, yPos);
-    yPos += 8;
-
-    // ========== DISEGNO 2D SROTOLATO ==========
-    // Calcola scala per adattare il disegno alla pagina
-    const drawAreaWidth = pageWidth - margin * 2;
-    const maxDrawHeight = 120; // Altezza massima per il disegno
-    
-    // Calcola le dimensioni proporzionali
     const { length, width, depth, sfido } = dimensions;
     
-    // Layout: Base al centro, pareti lunghe sopra/sotto, pareti corte ai lati
-    // Larghezza totale = parete corta + base + parete corta = depth + length + depth
-    // Altezza totale = parete lunga + base + parete lunga = depth + width + depth
-    const totalLayoutWidth = depth + length + depth;
-    const totalLayoutHeight = depth + width + depth;
-    
-    // Scala per adattare al PDF
-    const scaleX = drawAreaWidth / totalLayoutWidth;
-    const scaleY = maxDrawHeight / totalLayoutHeight;
-    const scale = Math.min(scaleX, scaleY) * 0.9; // 90% per margini interni
-    
-    // Dimensioni scalate
-    const sLength = length * scale;
-    const sWidth = width * scale;
-    const sDepth = depth * scale;
-    
-    // Centro del disegno
-    const centerX = pageWidth / 2;
-    const startY = yPos + 5;
-    
-    // Funzione helper per disegnare un rettangolo con etichette
-    const drawSurface = (
-      x: number, y: number, w: number, h: number, 
-      color: string, label: string, area: number, dims: string
-    ) => {
-      // Colore di riempimento
-      pdf.setFillColor(
-        parseInt(color.slice(1, 3), 16),
-        parseInt(color.slice(3, 5), 16),
-        parseInt(color.slice(5, 7), 16)
-      );
-      pdf.rect(x, y, w, h, 'F');
-      
-      // Bordo
-      pdf.setDrawColor(255, 255, 255);
-      pdf.setLineWidth(0.5);
-      pdf.rect(x, y, w, h, 'S');
-      
-      // Testo centrato
-      const textX = x + w / 2;
-      const textY = y + h / 2;
-      
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont('helvetica', 'bold');
-      
-      // Adatta dimensione font alla superficie
-      const fontSize = Math.min(10, Math.max(6, Math.min(w, h) / 4));
-      pdf.setFontSize(fontSize);
-      pdf.text(label, textX, textY - fontSize * 0.4, { align: 'center' });
-      
-      pdf.setFontSize(fontSize * 1.3);
-      pdf.text(`${area.toFixed(2)} m²`, textX, textY + fontSize * 0.5, { align: 'center' });
-      
-      pdf.setFontSize(fontSize * 0.7);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(dims, textX, textY + fontSize * 1.2, { align: 'center' });
-    };
-
-    // Colori dalle superfici
+    // Colori
     const bottomColor = colors.bottom;
     const sideLongColor = colors.sides_long;
     const sideShortColor = colors.sides_short;
+    const sfidoColor = colors.sfido || '#f59e0b';
     
     // Aree
     const bottomArea = length * width;
     const sideLongArea = length * depth;
     const sideShortArea = width * depth;
 
-    // 1. BASE (centro)
-    const baseX = centerX - sLength / 2;
-    const baseY = startY + sDepth;
-    drawSurface(baseX, baseY, sLength, sWidth, bottomColor, 'BASE', bottomArea, `${length.toFixed(1)}m × ${width.toFixed(1)}m`);
+    // ========== PAGINA 1: VISTA 2D SVILUPPATA ==========
+    
+    // Titolo compatto
+    pdf.setTextColor(30, 41, 59);
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('GeoViz - Vista Sviluppata TNT', margin, yPos + 5);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`${now.toLocaleDateString('it-IT')}`, pageWidth - margin - 20, yPos + 5);
+    
+    yPos = 25;
 
-    // 2. PARETE LUNGA 1 (sopra la base)
-    const longWall1X = centerX - sLength / 2;
-    const longWall1Y = startY;
-    drawSurface(longWall1X, longWall1Y, sLength, sDepth, sideLongColor, 'PARETE LUNGA 1', sideLongArea, `${length.toFixed(1)}m × ${depth.toFixed(1)}m`);
-
-    // 3. PARETE LUNGA 2 (sotto la base)
-    const longWall2X = centerX - sLength / 2;
-    const longWall2Y = startY + sDepth + sWidth;
-    drawSurface(longWall2X, longWall2Y, sLength, sDepth, sideLongColor, 'PARETE LUNGA 2', sideLongArea, `${length.toFixed(1)}m × ${depth.toFixed(1)}m`);
-
-    // 4. PARETE CORTA 1 (sinistra della base)
-    const shortWall1X = centerX - sLength / 2 - sDepth;
-    const shortWall1Y = startY + sDepth;
-    drawSurface(shortWall1X, shortWall1Y, sDepth, sWidth, sideShortColor, 'PARETE CORTA 1', sideShortArea, `${depth.toFixed(1)}m × ${width.toFixed(1)}m`);
-
-    // 5. PARETE CORTA 2 (destra della base)
-    const shortWall2X = centerX + sLength / 2;
-    const shortWall2Y = startY + sDepth;
-    drawSurface(shortWall2X, shortWall2Y, sDepth, sWidth, sideShortColor, 'PARETE CORTA 2', sideShortArea, `${depth.toFixed(1)}m × ${width.toFixed(1)}m`);
-
-    // 6. STRISCE SFIDO (sul bordo esterno delle pareti)
+    // Calcolo scala per il disegno 2D
+    // Layout: sfido + parete corta + base + parete corta + sfido (orizzontale)
+    //         sfido + parete lunga + base + parete lunga + sfido (verticale)
+    const totalLayoutWidth = (sfido * 2) + depth + length + depth + (sfido * 2);
+    const totalLayoutHeight = (sfido * 2) + depth + width + depth + (sfido * 2);
+    
+    const drawAreaWidth = pageWidth - margin * 2;
+    const drawAreaHeight = 160; // Area dedicata al disegno
+    
+    const scaleX = drawAreaWidth / totalLayoutWidth;
+    const scaleY = drawAreaHeight / totalLayoutHeight;
+    const scale = Math.min(scaleX, scaleY) * 0.85;
+    
+    // Dimensioni scalate
+    const sLength = length * scale;
+    const sWidth = width * scale;
+    const sDepth = depth * scale;
     const sSfido = sfido * scale;
-    const sfidoColorPDF = colors.sfido || '#f59e0b';
-    const sfidoColorR = parseInt(sfidoColorPDF.slice(1, 3), 16);
-    const sfidoColorG = parseInt(sfidoColorPDF.slice(3, 5), 16);
-    const sfidoColorB = parseInt(sfidoColorPDF.slice(5, 7), 16);
     
-    if (sfido > 0 && sSfido > 1) {
-      pdf.setDrawColor(Math.max(0, sfidoColorR - 50), Math.max(0, sfidoColorG - 50), Math.max(0, sfidoColorB - 50));
-      pdf.setLineWidth(0.3);
-      
-      // Sfido parete lunga 1 (sopra)
-      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
-      pdf.rect(longWall1X, longWall1Y - sSfido, sLength, sSfido, 'FD');
-      
-      // Etichetta sfido 1 - testo scuro
-      pdf.setTextColor(80, 50, 0);
-      pdf.setFontSize(Math.max(5, Math.min(7, sSfido * 0.6)));
-      pdf.setFont('helvetica', 'bold');
-      if (sSfido > 4) {
-        pdf.text(`SFIDO ${(length * sfido).toFixed(1)} m²`, longWall1X + sLength/2, longWall1Y - sSfido/2 + 1, { align: 'center' });
-      }
-
-      // Sfido parete lunga 2 (sotto)
-      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
-      pdf.rect(longWall2X, longWall2Y + sDepth, sLength, sSfido, 'FD');
-      if (sSfido > 4) {
-        pdf.text(`SFIDO ${(length * sfido).toFixed(1)} m²`, longWall2X + sLength/2, longWall2Y + sDepth + sSfido/2 + 1, { align: 'center' });
-      }
-
-      // Sfido parete corta 1 (sinistra)
-      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
-      pdf.rect(shortWall1X - sSfido, shortWall1Y, sSfido, sWidth, 'FD');
-
-      // Sfido parete corta 2 (destra)
-      pdf.setFillColor(sfidoColorR, sfidoColorG, sfidoColorB);
-      pdf.rect(shortWall2X + sDepth, shortWall2Y, sSfido, sWidth, 'FD');
-    }
-
-    // Linee di piegatura tratteggiate
-    pdf.setDrawColor(100, 116, 139);
-    pdf.setLineWidth(0.3);
-    pdf.setLineDashPattern([2, 2], 0);
+    // Centro del disegno
+    const centerX = pageWidth / 2;
+    const centerY = yPos + drawAreaHeight / 2;
     
-    // Linea tra parete lunga 1 e base
-    pdf.line(baseX, baseY, baseX + sLength, baseY);
-    // Linea tra base e parete lunga 2
-    pdf.line(baseX, baseY + sWidth, baseX + sLength, baseY + sWidth);
-    // Linea tra parete corta 1 e base
-    pdf.line(baseX, baseY, baseX, baseY + sWidth);
-    // Linea tra base e parete corta 2
-    pdf.line(baseX + sLength, baseY, baseX + sLength, baseY + sWidth);
+    // Posizioni base (centro della croce)
+    const baseX = centerX - sLength / 2;
+    const baseY = centerY - sWidth / 2;
     
-    pdf.setLineDashPattern([], 0); // Reset dash
-
-    yPos = startY + sDepth * 2 + sWidth + 15;
-
-    // ========== LEGENDA E RIEPILOGO ==========
-    pdf.setTextColor(30, 41, 59);
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Dimensioni Scavo', margin, yPos);
-    yPos += 7;
-
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(71, 85, 105);
-    pdf.text(`Lunghezza (L): ${dimensions.length.toFixed(2)} m   |   Larghezza (W): ${dimensions.width.toFixed(2)} m   |   Profondità (D): ${dimensions.depth.toFixed(2)} m   |   Sfido: ${dimensions.sfido.toFixed(2)} m/lato`, margin, yPos);
-    yPos += 12;
-
-    // Tabella riepilogo superfici
-    pdf.setTextColor(30, 41, 59);
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Riepilogo Superfici TNT', margin, yPos);
-    yPos += 8;
-
-    // Header tabella
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFillColor(241, 245, 249);
-    pdf.rect(margin, yPos - 4, pageWidth - margin * 2, 7, 'F');
-    pdf.setTextColor(71, 85, 105);
-    pdf.text('Colore', margin + 3, yPos);
-    pdf.text('Superficie', margin + 20, yPos);
-    pdf.text('Dimensioni', margin + 70, yPos);
-    pdf.text('Area unit.', margin + 115, yPos);
-    pdf.text('Qtà', margin + 145, yPos);
-    pdf.text('Totale', margin + 160, yPos);
-    yPos += 8;
-
-    // Colore sfido
-    const sfidoColor = colors.sfido || '#f59e0b';
-
-    // Righe tabella - SUPERFICI
-    pdf.setFont('helvetica', 'normal');
-    const surfaceDataPDF = [
-      { color: bottomColor, name: 'Base', dims: `${length.toFixed(1)} × ${width.toFixed(1)} m`, area: bottomArea, qty: 1 },
-      { color: sideLongColor, name: 'Pareti Lunghe', dims: `${length.toFixed(1)} × ${depth.toFixed(1)} m`, area: sideLongArea, qty: 2 },
-      { color: sideShortColor, name: 'Pareti Corte', dims: `${width.toFixed(1)} × ${depth.toFixed(1)} m`, area: sideShortArea, qty: 2 },
-    ];
-
-    surfaceDataPDF.forEach((s) => {
-      pdf.setFillColor(
-        parseInt(s.color.slice(1, 3), 16),
-        parseInt(s.color.slice(3, 5), 16),
-        parseInt(s.color.slice(5, 7), 16)
-      );
-      pdf.rect(margin + 3, yPos - 3, 10, 5, 'F');
-      
-      pdf.setTextColor(71, 85, 105);
-      pdf.setFontSize(9);
-      pdf.text(s.name, margin + 20, yPos);
-      pdf.text(s.dims, margin + 70, yPos);
-      pdf.text(`${s.area.toFixed(2)} m²`, margin + 115, yPos);
-      pdf.text(`×${s.qty}`, margin + 145, yPos);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`${(s.area * s.qty).toFixed(2)} m²`, margin + 160, yPos);
-      pdf.setFont('helvetica', 'normal');
-      yPos += 7;
-    });
-
-    // Subtotale superfici
-    pdf.setDrawColor(200, 200, 200);
-    pdf.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 5;
-    pdf.setTextColor(71, 85, 105);
-    pdf.setFontSize(9);
-    pdf.text('Subtotale superfici:', margin + 70, yPos);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${totalArea.toFixed(2)} m²`, margin + 160, yPos);
-    pdf.setFont('helvetica', 'normal');
-    yPos += 10;
-
-    // SEZIONE SFIDO
-    pdf.setFillColor(254, 243, 199); // amber-100
-    pdf.rect(margin, yPos - 4, pageWidth - margin * 2, 25, 'F');
-    
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(146, 64, 14); // amber-800
-    pdf.text(`SFIDO (${sfido}m sul bordo superiore)`, margin + 5, yPos + 2);
-    yPos += 8;
-    
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'normal');
-    
-    // Sfido pareti lunghe
-    pdf.setFillColor(
-      parseInt(sfidoColor.slice(1, 3), 16),
-      parseInt(sfidoColor.slice(3, 5), 16),
-      parseInt(sfidoColor.slice(5, 7), 16)
-    );
-    pdf.rect(margin + 5, yPos - 2, 8, 4, 'F');
-    pdf.setTextColor(146, 64, 14);
-    pdf.text(`Sfido pareti lunghe: ${length.toFixed(1)}m × ${sfido}m × 2 =`, margin + 18, yPos);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${sfidoData.sfidoLunghe.toFixed(2)} m²`, margin + 100, yPos);
-    yPos += 6;
-    
-    // Sfido pareti corte
-    pdf.setFont('helvetica', 'normal');
-    pdf.rect(margin + 5, yPos - 2, 8, 4, 'F');
-    pdf.text(`Sfido pareti corte: ${width.toFixed(1)}m × ${sfido}m × 2 =`, margin + 18, yPos);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${sfidoData.sfidoCorte.toFixed(2)} m²`, margin + 100, yPos);
-    
-    // Totale sfido
-    pdf.setFontSize(10);
-    pdf.text(`Totale sfido: ${sfidoData.totale.toFixed(2)} m²`, margin + 130, yPos - 3);
-    
-    yPos += 10;
-
-    // Box Totale FINALE
-    pdf.setFillColor(30, 41, 59);
-    pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 22, 2, 2, 'F');
-    
-    // Calcolo
-    pdf.setTextColor(148, 163, 184);
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Superfici: ${totalArea.toFixed(2)} m² + Sfido: ${sfidoData.totale.toFixed(2)} m²`, margin + 8, yPos + 8);
-    
-    // Totale
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('TOTALE FORNITURA TNT:', margin + 8, yPos + 17);
-    
-    pdf.setFontSize(18);
-    pdf.setTextColor(251, 191, 36); // amber-400
-    pdf.text(`${totalAreaConSfido.toFixed(2)} m²`, margin + 70, yPos + 17);
-
-    // Footer pagina 1
-    pdf.setTextColor(148, 163, 184);
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Pagina 1/2 - Vista Sviluppata', pageWidth / 2, pageHeight - 8, { align: 'center' });
-
-    // ========== PAGINA 2: VISTA 3D ==========
-    pdf.addPage();
-    yPos = margin;
-
-    // Header pagina 2
-    pdf.setFillColor(79, 70, 229);
-    pdf.rect(0, 0, pageWidth, 40, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(22);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('GeoViz Dynamic', margin, 18);
-    
-    pdf.setFontSize(11);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Vista 3D Isometrica con Quote', margin, 28);
-    
-    pdf.setFontSize(9);
-    pdf.text(`Data: ${now.toLocaleDateString('it-IT')}`, pageWidth - margin - 35, 28);
-
-    yPos = 50;
-
-    // ========== DISEGNO ISOMETRICO 3D CON FRECCE ==========
-    // Costanti isometriche (angolo 30°)
-    const isoAngle = Math.PI / 6; // 30 gradi
-    const cos30 = Math.cos(isoAngle);
-    const sin30 = Math.sin(isoAngle);
-    
-    // Scala per adattare al PDF
-    const isoScale = 12;
-    const sL = length * isoScale; // Lunghezza scalata
-    const sW = width * isoScale;  // Larghezza scalata
-    const sD = depth * isoScale;  // Profondità/altezza scalata
-    
-    // Centro del disegno isometrico
-    const isoCenterX = pageWidth / 2;
-    const isoCenterY = yPos + 70;
-    
-    // Funzione per convertire coordinate 3D in 2D isometrico
-    const toIso = (x: number, y: number, z: number): [number, number] => {
-      const isoX = isoCenterX + (x - z) * cos30;
-      const isoY = isoCenterY - y + (x + z) * sin30;
-      return [isoX, isoY];
-    };
-    
-    // Vertici dello scavo (cubo aperto sopra)
-    // Base: y = 0, Top: y = sD
-    const vertices = {
-      // Base inferiore
-      A: toIso(-sL/2, 0, -sW/2),      // Retro sinistra basso
-      B: toIso(sL/2, 0, -sW/2),       // Retro destra basso
-      C: toIso(sL/2, 0, sW/2),        // Fronte destra basso
-      D: toIso(-sL/2, 0, sW/2),       // Fronte sinistra basso
-      // Top (bocca aperta)
-      E: toIso(-sL/2, sD, -sW/2),     // Retro sinistra alto
-      F: toIso(sL/2, sD, -sW/2),      // Retro destra alto
-      G: toIso(sL/2, sD, sW/2),       // Fronte destra alto
-      H: toIso(-sL/2, sD, sW/2),      // Fronte sinistra alto
-    };
-    
-    // Helper per disegnare una superficie colorata
-    const drawFace = (points: [number, number][], color: string) => {
+    // Funzione helper per disegnare superficie
+    const drawSurface = (x: number, y: number, w: number, h: number, color: string, label: string, area: number) => {
       pdf.setFillColor(
         parseInt(color.slice(1, 3), 16),
         parseInt(color.slice(3, 5), 16),
         parseInt(color.slice(5, 7), 16)
       );
-      
-      // Crea il path del poligono
-      const path = points.map((p, i) => {
-        if (i === 0) return `${p[0]} ${p[1]} m`;
-        return `${p[0]} ${p[1]} l`;
-      }).join(' ') + ' h';
-      
-      // Disegna usando linee
-      pdf.setLineWidth(0.3);
+      pdf.rect(x, y, w, h, 'F');
       pdf.setDrawColor(255, 255, 255);
+      pdf.setLineWidth(0.4);
+      pdf.rect(x, y, w, h, 'S');
       
-      // Riempi il poligono manualmente
-      for (let i = 0; i < points.length; i++) {
-        const p1 = points[i];
-        const p2 = points[(i + 1) % points.length];
-        pdf.line(p1[0], p1[1], p2[0], p2[1]);
-      }
+      const fontSize = Math.min(9, Math.max(5, Math.min(w, h) / 5));
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(fontSize);
+      pdf.text(label, x + w/2, y + h/2 - 2, { align: 'center' });
+      pdf.setFontSize(fontSize * 1.2);
+      pdf.text(`${area.toFixed(1)} m²`, x + w/2, y + h/2 + 4, { align: 'center' });
     };
+
+    // Disegna le superfici
+    // BASE (centro)
+    drawSurface(baseX, baseY, sLength, sWidth, bottomColor, 'BASE', bottomArea);
     
-    // Disegna le facce visibili (ordine: retro prima, poi lati, poi fronte)
+    // PARETE LUNGA 1 (sopra)
+    drawSurface(baseX, baseY - sDepth, sLength, sDepth, sideLongColor, 'PARETE LUNGA', sideLongArea);
     
-    // 1. PARETE POSTERIORE (parete lunga - retro)
-    pdf.setFillColor(
-      parseInt(sideLongColor.slice(1, 3), 16),
-      parseInt(sideLongColor.slice(3, 5), 16),
-      parseInt(sideLongColor.slice(5, 7), 16)
-    );
-    const backWall = [vertices.A, vertices.B, vertices.F, vertices.E];
-    pdf.moveTo(backWall[0][0], backWall[0][1]);
-    backWall.forEach(v => pdf.lineTo(v[0], v[1]));
-    pdf.fill();
+    // PARETE LUNGA 2 (sotto)
+    drawSurface(baseX, baseY + sWidth, sLength, sDepth, sideLongColor, 'PARETE LUNGA', sideLongArea);
     
-    // 2. PARETE SINISTRA (parete corta)
-    pdf.setFillColor(
-      parseInt(sideShortColor.slice(1, 3), 16),
-      parseInt(sideShortColor.slice(3, 5), 16),
-      parseInt(sideShortColor.slice(5, 7), 16)
-    );
-    const leftWall = [vertices.A, vertices.D, vertices.H, vertices.E];
-    pdf.moveTo(leftWall[0][0], leftWall[0][1]);
-    leftWall.forEach(v => pdf.lineTo(v[0], v[1]));
-    pdf.fill();
+    // PARETE CORTA 1 (sinistra)
+    drawSurface(baseX - sDepth, baseY, sDepth, sWidth, sideShortColor, 'P.CORTA', sideShortArea);
     
-    // 3. BASE (superficie inferiore)
-    pdf.setFillColor(
-      parseInt(bottomColor.slice(1, 3), 16),
-      parseInt(bottomColor.slice(3, 5), 16),
-      parseInt(bottomColor.slice(5, 7), 16)
-    );
-    const baseFace = [vertices.A, vertices.B, vertices.C, vertices.D];
-    pdf.moveTo(baseFace[0][0], baseFace[0][1]);
-    baseFace.forEach(v => pdf.lineTo(v[0], v[1]));
-    pdf.fill();
+    // PARETE CORTA 2 (destra)
+    drawSurface(baseX + sLength, baseY, sDepth, sWidth, sideShortColor, 'P.CORTA', sideShortArea);
     
-    // 4. PARETE DESTRA (parete corta - visibile parzialmente)
-    pdf.setFillColor(
-      Math.min(255, parseInt(sideShortColor.slice(1, 3), 16) + 30),
-      Math.min(255, parseInt(sideShortColor.slice(3, 5), 16) + 30),
-      Math.min(255, parseInt(sideShortColor.slice(5, 7), 16) + 30)
-    );
-    const rightWall = [vertices.B, vertices.C, vertices.G, vertices.F];
-    pdf.moveTo(rightWall[0][0], rightWall[0][1]);
-    rightWall.forEach(v => pdf.lineTo(v[0], v[1]));
-    pdf.fill();
-    
-    // 5. PARETE FRONTALE (parete lunga - fronte)
-    pdf.setFillColor(
-      Math.min(255, parseInt(sideLongColor.slice(1, 3), 16) + 20),
-      Math.min(255, parseInt(sideLongColor.slice(3, 5), 16) + 20),
-      Math.min(255, parseInt(sideLongColor.slice(5, 7), 16) + 20)
-    );
-    const frontWall = [vertices.D, vertices.C, vertices.G, vertices.H];
-    pdf.moveTo(frontWall[0][0], frontWall[0][1]);
-    frontWall.forEach(v => pdf.lineTo(v[0], v[1]));
-    pdf.fill();
-    
-    // 6. STRISCE SFIDO (estensione delle pareti verso l'esterno con lieve inclinazione)
-    if (sfido > 0) {
-      const sfidoColor = colors.sfido || '#f59e0b';
-      const sSfido = sfido * scale;
-      const sfidoLift = 2; // Leggera inclinazione verso l'alto per dare effetto 3D
+    // STRISCE SFIDO
+    if (sfido > 0 && sSfido > 2) {
+      const sfR = parseInt(sfidoColor.slice(1, 3), 16);
+      const sfG = parseInt(sfidoColor.slice(3, 5), 16);
+      const sfB = parseInt(sfidoColor.slice(5, 7), 16);
       
-      // Colore sfido base
-      const sfidoR = parseInt(sfidoColor.slice(1, 3), 16);
-      const sfidoG = parseInt(sfidoColor.slice(3, 5), 16);
-      const sfidoB = parseInt(sfidoColor.slice(5, 7), 16);
-      
-      // Vertici esterni per lo sfido (esteso oltre il bordo con leggera elevazione)
-      const sfidoVertices = {
-        E_out: toIso(-sL/2 - sSfido, sD + sfidoLift, -sW/2 - sSfido),
-        F_out: toIso(sL/2 + sSfido, sD + sfidoLift, -sW/2 - sSfido),
-        G_out: toIso(sL/2 + sSfido, sD + sfidoLift, sW/2 + sSfido),
-        H_out: toIso(-sL/2 - sSfido, sD + sfidoLift, sW/2 + sSfido),
-      };
-      
-      // Striscia sfido - Parete posteriore (retro, lunga) - colore più scuro
-      pdf.setFillColor(Math.max(0, sfidoR - 40), Math.max(0, sfidoG - 40), Math.max(0, sfidoB - 40));
-      const sfidoBack = [vertices.E, vertices.F, sfidoVertices.F_out, sfidoVertices.E_out];
-      pdf.moveTo(sfidoBack[0][0], sfidoBack[0][1]);
-      sfidoBack.forEach(v => pdf.lineTo(v[0], v[1]));
-      pdf.fill();
-      
-      // Striscia sfido - Parete sinistra (corta) - colore medio
-      pdf.setFillColor(Math.max(0, sfidoR - 20), Math.max(0, sfidoG - 20), Math.max(0, sfidoB - 20));
-      const sfidoLeft = [vertices.E, sfidoVertices.E_out, sfidoVertices.H_out, vertices.H];
-      pdf.moveTo(sfidoLeft[0][0], sfidoLeft[0][1]);
-      sfidoLeft.forEach(v => pdf.lineTo(v[0], v[1]));
-      pdf.fill();
-      
-      // Striscia sfido - Parete destra (corta) - colore più chiaro
-      pdf.setFillColor(Math.min(255, sfidoR + 20), Math.min(255, sfidoG + 20), Math.min(255, sfidoB + 20));
-      const sfidoRight = [vertices.F, vertices.G, sfidoVertices.G_out, sfidoVertices.F_out];
-      pdf.moveTo(sfidoRight[0][0], sfidoRight[0][1]);
-      sfidoRight.forEach(v => pdf.lineTo(v[0], v[1]));
-      pdf.fill();
-      
-      // Striscia sfido - Parete frontale (fronte, lunga) - colore base
-      pdf.setFillColor(sfidoR, sfidoG, sfidoB);
-      const sfidoFront = [vertices.H, sfidoVertices.H_out, sfidoVertices.G_out, vertices.G];
-      pdf.moveTo(sfidoFront[0][0], sfidoFront[0][1]);
-      sfidoFront.forEach(v => pdf.lineTo(v[0], v[1]));
-      pdf.fill();
-      
-      // Bordi sfido
-      pdf.setDrawColor(100, 80, 0);
+      pdf.setFillColor(sfR, sfG, sfB);
+      pdf.setDrawColor(sfR - 40, sfG - 40, sfB - 40);
       pdf.setLineWidth(0.3);
-      // Bordo esterno
-      pdf.line(sfidoVertices.E_out[0], sfidoVertices.E_out[1], sfidoVertices.F_out[0], sfidoVertices.F_out[1]);
-      pdf.line(sfidoVertices.F_out[0], sfidoVertices.F_out[1], sfidoVertices.G_out[0], sfidoVertices.G_out[1]);
-      pdf.line(sfidoVertices.G_out[0], sfidoVertices.G_out[1], sfidoVertices.H_out[0], sfidoVertices.H_out[1]);
-      pdf.line(sfidoVertices.H_out[0], sfidoVertices.H_out[1], sfidoVertices.E_out[0], sfidoVertices.E_out[1]);
-      // Connessioni al bordo scavo
-      pdf.line(vertices.E[0], vertices.E[1], sfidoVertices.E_out[0], sfidoVertices.E_out[1]);
-      pdf.line(vertices.F[0], vertices.F[1], sfidoVertices.F_out[0], sfidoVertices.F_out[1]);
-      pdf.line(vertices.G[0], vertices.G[1], sfidoVertices.G_out[0], sfidoVertices.G_out[1]);
-      pdf.line(vertices.H[0], vertices.H[1], sfidoVertices.H_out[0], sfidoVertices.H_out[1]);
       
-      // Etichetta sfido sulla striscia retro
+      // Sfido sopra parete lunga 1
+      pdf.rect(baseX, baseY - sDepth - sSfido, sLength, sSfido, 'FD');
+      
+      // Sfido sotto parete lunga 2
+      pdf.rect(baseX, baseY + sWidth + sDepth, sLength, sSfido, 'FD');
+      
+      // Sfido sinistra parete corta 1
+      pdf.rect(baseX - sDepth - sSfido, baseY, sSfido, sWidth, 'FD');
+      
+      // Sfido destra parete corta 2
+      pdf.rect(baseX + sLength + sDepth, baseY, sSfido, sWidth, 'FD');
+      
+      // Etichette sfido
       pdf.setTextColor(80, 50, 0);
-      pdf.setFontSize(7);
+      pdf.setFontSize(6);
       pdf.setFont('helvetica', 'bold');
-      const sfidoLabelBack = toIso(0, sD + sfidoLift/2, -sW/2 - sSfido/2);
-      pdf.text(`SFIDO`, sfidoLabelBack[0] - 5, sfidoLabelBack[1]);
-      pdf.text(`${sfidoData.totale.toFixed(1)} m²`, sfidoLabelBack[0] - 7, sfidoLabelBack[1] + 4);
+      if (sSfido > 6) {
+        pdf.text('SFIDO', baseX + sLength/2, baseY - sDepth - sSfido/2, { align: 'center' });
+        pdf.text('SFIDO', baseX + sLength/2, baseY + sWidth + sDepth + sSfido/2 + 1, { align: 'center' });
+      }
     }
     
-    // Bordi dello scavo
-    pdf.setDrawColor(50, 50, 50);
-    pdf.setLineWidth(0.5);
-    
-    // Bordi base
-    pdf.line(vertices.A[0], vertices.A[1], vertices.B[0], vertices.B[1]);
-    pdf.line(vertices.B[0], vertices.B[1], vertices.C[0], vertices.C[1]);
-    pdf.line(vertices.C[0], vertices.C[1], vertices.D[0], vertices.D[1]);
-    pdf.line(vertices.D[0], vertices.D[1], vertices.A[0], vertices.A[1]);
-    
-    // Bordi verticali
-    pdf.line(vertices.A[0], vertices.A[1], vertices.E[0], vertices.E[1]);
-    pdf.line(vertices.B[0], vertices.B[1], vertices.F[0], vertices.F[1]);
-    pdf.line(vertices.C[0], vertices.C[1], vertices.G[0], vertices.G[1]);
-    pdf.line(vertices.D[0], vertices.D[1], vertices.H[0], vertices.H[1]);
-    
-    // Bordi top (bocca aperta - tratteggiato)
-    pdf.setLineDashPattern([2, 1], 0);
-    pdf.setDrawColor(100, 100, 100);
-    pdf.line(vertices.E[0], vertices.E[1], vertices.F[0], vertices.F[1]);
-    pdf.line(vertices.F[0], vertices.F[1], vertices.G[0], vertices.G[1]);
-    pdf.line(vertices.G[0], vertices.G[1], vertices.H[0], vertices.H[1]);
-    pdf.line(vertices.H[0], vertices.H[1], vertices.E[0], vertices.E[1]);
+    // Linee piegatura
+    pdf.setDrawColor(100, 116, 139);
+    pdf.setLineWidth(0.3);
+    pdf.setLineDashPattern([2, 2], 0);
+    pdf.line(baseX, baseY, baseX + sLength, baseY);
+    pdf.line(baseX, baseY + sWidth, baseX + sLength, baseY + sWidth);
+    pdf.line(baseX, baseY, baseX, baseY + sWidth);
+    pdf.line(baseX + sLength, baseY, baseX + sLength, baseY + sWidth);
     pdf.setLineDashPattern([], 0);
-    
-    // ========== FRECCE E ANNOTAZIONI ==========
-    pdf.setDrawColor(59, 130, 246); // Blu
-    pdf.setLineWidth(0.6);
-    
-    // Funzione per disegnare freccia con etichetta
-    const drawArrow = (
-      fromX: number, fromY: number, 
-      toX: number, toY: number, 
-      label: string, 
-      labelOffsetX: number = 0, 
-      labelOffsetY: number = 0
-    ) => {
-      // Linea
-      pdf.line(fromX, fromY, toX, toY);
-      
-      // Punta freccia
-      const angle = Math.atan2(toY - fromY, toX - fromX);
-      const arrowSize = 2;
-      pdf.line(toX, toY, 
-        toX - arrowSize * Math.cos(angle - Math.PI/6), 
-        toY - arrowSize * Math.sin(angle - Math.PI/6));
-      pdf.line(toX, toY, 
-        toX - arrowSize * Math.cos(angle + Math.PI/6), 
-        toY - arrowSize * Math.sin(angle + Math.PI/6));
-      
-      // Etichetta
-      pdf.setTextColor(59, 130, 246);
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(label, fromX + labelOffsetX, fromY + labelOffsetY);
-    };
-    
-    // Centro delle facce per le frecce
-    const baseCenter = toIso(0, 0, 0);
-    const backCenter = toIso(0, sD/2, -sW/2);
-    const frontCenter = toIso(0, sD/2, sW/2);
-    const leftCenter = toIso(-sL/2, sD/2, 0);
-    const rightCenter = toIso(sL/2, sD/2, 0);
-    
-    // Offset per evitare sovrapposizioni con sfido
-    const sfidoOffset = sfido > 0 ? 15 : 0;
-    
-    // FRECCIA 1: Parete Lunga (retro) - in alto a sinistra
-    drawArrow(margin + 5, yPos + 5, backCenter[0] - 20, backCenter[1] - 10, 
-      `${sideLongArea.toFixed(2)} m²`, -5, -3);
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Lunga', margin, yPos + 12);
-    
-    // FRECCIA 2: Parete Corta (sinistra) - a sinistra
-    drawArrow(margin + 5, isoCenterY + 30 + sfidoOffset, leftCenter[0] - 10, leftCenter[1] + 5, 
-      `${sideShortArea.toFixed(2)} m²`, -5, -3);
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Corta', margin, isoCenterY + 37 + sfidoOffset);
-    
-    // FRECCIA 3: Base - in basso
-    drawArrow(isoCenterX, isoCenterY + sD/2 + 45, baseCenter[0], baseCenter[1] + 10, 
-      `${bottomArea.toFixed(2)} m²`, -12, 12);
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Base', isoCenterX - 5, isoCenterY + sD/2 + 58);
-    
-    // FRECCIA 4: Parete Corta (destra) - a destra
-    drawArrow(pageWidth - margin - 5, isoCenterY - 15, rightCenter[0] + 15, rightCenter[1] - 5, 
-      `${sideShortArea.toFixed(2)} m²`, -25, -3);
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Corta', pageWidth - margin - 22, isoCenterY - 8);
-    
-    // FRECCIA 5: Parete Lunga (fronte) - a destra in basso
-    drawArrow(pageWidth - margin - 10, isoCenterY + 55 + sfidoOffset, frontCenter[0] + 20, frontCenter[1] + 10, 
-      `${sideLongArea.toFixed(2)} m²`, -30, -3);
-    pdf.setFontSize(7);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Parete Lunga', pageWidth - margin - 25, isoCenterY + 62 + sfidoOffset);
-    
-    yPos = isoCenterY + 90 + sfidoOffset;
 
-    // ========== RIEPILOGO SPECIFICHE ==========
+    // Sposta yPos dopo il disegno
+    yPos = centerY + drawAreaHeight/2 + 10;
+
+    // ========== TABELLA RIEPILOGO ==========
     pdf.setTextColor(30, 41, 59);
-    pdf.setFontSize(12);
+    pdf.setFontSize(11);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Specifiche Tecniche', margin, yPos);
-    yPos += 8;
+    pdf.text('Riepilogo Superfici', margin, yPos);
+    yPos += 6;
 
-    pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(margin, yPos - 3, pageWidth - margin * 2, 28, 2, 2, 'F');
-    
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
+    // Header tabella
+    pdf.setFillColor(241, 245, 249);
+    pdf.rect(margin, yPos - 3, pageWidth - margin * 2, 6, 'F');
+    pdf.setFontSize(8);
     pdf.setTextColor(71, 85, 105);
-    
-    const specY = yPos + 4;
-    
-    // Riga 1
-    pdf.text(`Dimensioni:`, margin + 5, specY);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${length.toFixed(2)}m × ${width.toFixed(2)}m × ${depth.toFixed(2)}m (L×W×D)`, margin + 30, specY);
-    
-    const volume = length * width * depth;
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Volume:`, margin + 110, specY);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${volume.toFixed(2)} m³`, margin + 128, specY);
-    
-    // Riga 2
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Superficie TNT Totale:`, margin + 5, specY + 8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(79, 70, 229);
-    pdf.text(`${totalArea.toFixed(2)} m²`, margin + 45, specY + 8);
-    
-    pdf.setTextColor(71, 85, 105);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`(1 base + 2 pareti lunghe + 2 pareti corte)`, margin + 65, specY + 8);
-    
-    // Riga 3 - Legenda colori inline
-    yPos = specY + 18;
-    pdf.text('Legenda:', margin + 5, yPos);
-    
-    let legendX = margin + 28;
-    const legendItems: Array<{color: string, name: string}> = [
-      { color: bottomColor, name: 'Base' },
-      { color: sideLongColor, name: 'P. Lunghe' },
-      { color: sideShortColor, name: 'P. Corte' },
+    pdf.text('Superficie', margin + 15, yPos);
+    pdf.text('Dimensioni', margin + 55, yPos);
+    pdf.text('Area', margin + 100, yPos);
+    pdf.text('Qtà', margin + 130, yPos);
+    pdf.text('Totale', margin + 150, yPos);
+    yPos += 6;
+
+    // Righe
+    const rows = [
+      { color: bottomColor, name: 'Base', dims: `${length.toFixed(1)}×${width.toFixed(1)}m`, area: bottomArea, qty: 1 },
+      { color: sideLongColor, name: 'Pareti Lunghe', dims: `${length.toFixed(1)}×${depth.toFixed(1)}m`, area: sideLongArea, qty: 2 },
+      { color: sideShortColor, name: 'Pareti Corte', dims: `${width.toFixed(1)}×${depth.toFixed(1)}m`, area: sideShortArea, qty: 2 },
     ];
-    
-    // Aggiungi sfido alla legenda se presente
-    if (sfido > 0) {
-      legendItems.push({ color: colors.sfido || '#f59e0b', name: 'Sfido' });
-    }
-    
-    legendItems.forEach((item) => {
-      pdf.setFillColor(
-        parseInt(item.color.slice(1, 3), 16),
-        parseInt(item.color.slice(3, 5), 16),
-        parseInt(item.color.slice(5, 7), 16)
-      );
-      pdf.rect(legendX, yPos - 3, 8, 4, 'F');
+
+    rows.forEach(r => {
+      pdf.setFillColor(parseInt(r.color.slice(1,3),16), parseInt(r.color.slice(3,5),16), parseInt(r.color.slice(5,7),16));
+      pdf.rect(margin + 3, yPos - 2.5, 8, 4, 'F');
       pdf.setTextColor(71, 85, 105);
-      pdf.text(item.name, legendX + 10, yPos);
-      legendX += 45;
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(r.name, margin + 15, yPos);
+      pdf.text(r.dims, margin + 55, yPos);
+      pdf.text(`${r.area.toFixed(1)} m²`, margin + 100, yPos);
+      pdf.text(`×${r.qty}`, margin + 130, yPos);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${(r.area * r.qty).toFixed(1)} m²`, margin + 150, yPos);
+      yPos += 5;
     });
 
-    // Footer pagina 2
+    // Subtotale
+    pdf.setDrawColor(200, 200, 200);
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 4;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Subtotale superfici:', margin + 55, yPos);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`${totalArea.toFixed(1)} m²`, margin + 150, yPos);
+    yPos += 8;
+
+    // SFIDO
+    if (sfido > 0) {
+      pdf.setFillColor(254, 243, 199);
+      pdf.rect(margin, yPos - 3, pageWidth - margin * 2, 18, 'F');
+      pdf.setTextColor(146, 64, 14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.text(`SFIDO (${sfido}m sul bordo superiore)`, margin + 5, yPos + 2);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.text(`Pareti lunghe: ${length.toFixed(1)}m × ${sfido}m × 2 = ${sfidoData.sfidoLunghe.toFixed(1)} m²`, margin + 5, yPos + 8);
+      pdf.text(`Pareti corte: ${width.toFixed(1)}m × ${sfido}m × 2 = ${sfidoData.sfidoCorte.toFixed(1)} m²`, margin + 5, yPos + 13);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Totale sfido: ${sfidoData.totale.toFixed(1)} m²`, margin + 120, yPos + 10);
+      yPos += 22;
+    }
+
+    // TOTALE FINALE
+    pdf.setFillColor(30, 41, 59);
+    pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 16, 2, 2, 'F');
+    pdf.setTextColor(148, 163, 184);
+    pdf.setFontSize(8);
+    pdf.text(`Superfici: ${totalArea.toFixed(1)} m² + Sfido: ${sfidoData.totale.toFixed(1)} m²`, margin + 5, yPos + 6);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.text('TOTALE TNT:', margin + 5, yPos + 12);
+    pdf.setFontSize(16);
+    pdf.setTextColor(251, 191, 36);
+    pdf.text(`${totalAreaConSfido.toFixed(1)} m²`, margin + 45, yPos + 12);
+
+    // Footer
+    pdf.setTextColor(148, 163, 184);
+    pdf.setFontSize(7);
+    pdf.text('Pagina 1/2', pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+    // ========== PAGINA 2: VISTA 3D ISOMETRICA ==========
+    pdf.addPage();
+    yPos = margin;
+    
+    pdf.setTextColor(30, 41, 59);
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('GeoViz - Vista 3D Isometrica', margin, yPos + 5);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`${now.toLocaleDateString('it-IT')}`, pageWidth - margin - 20, yPos + 5);
+    
+    yPos = 30;
+
+    // Parametri isometrici
+    const isoAngle = Math.PI / 6;
+    const cos30 = Math.cos(isoAngle);
+    const sin30 = Math.sin(isoAngle);
+    const isoScale = 16;
+    
+    const sL = length * isoScale;
+    const sW = width * isoScale;
+    const sD = depth * isoScale;
+    const sSfidoIso = sfido * isoScale;
+    
+    const isoCenterX = pageWidth / 2;
+    const isoCenterY = 130;
+    
+    const toIso = (x: number, y: number, z: number): [number, number] => {
+      return [isoCenterX + (x - z) * cos30, isoCenterY - y + (x + z) * sin30];
+    };
+    
+    // Vertici scavo
+    const v = {
+      A: toIso(-sL/2, 0, -sW/2), B: toIso(sL/2, 0, -sW/2),
+      C: toIso(sL/2, 0, sW/2), D: toIso(-sL/2, 0, sW/2),
+      E: toIso(-sL/2, sD, -sW/2), F: toIso(sL/2, sD, -sW/2),
+      G: toIso(sL/2, sD, sW/2), H: toIso(-sL/2, sD, sW/2),
+    };
+    
+    // Disegna pareti
+    const fillPoly = (pts: [number, number][], r: number, g: number, b: number) => {
+      pdf.setFillColor(r, g, b);
+      pdf.moveTo(pts[0][0], pts[0][1]);
+      pts.forEach(p => pdf.lineTo(p[0], p[1]));
+      pdf.fill();
+    };
+    
+    // Parete retro (lunga)
+    const sLR = parseInt(sideLongColor.slice(1,3),16);
+    const sLG = parseInt(sideLongColor.slice(3,5),16);
+    const sLB = parseInt(sideLongColor.slice(5,7),16);
+    fillPoly([v.A, v.B, v.F, v.E], sLR, sLG, sLB);
+    
+    // Parete sinistra (corta)
+    const sSR = parseInt(sideShortColor.slice(1,3),16);
+    const sSG = parseInt(sideShortColor.slice(3,5),16);
+    const sSB = parseInt(sideShortColor.slice(5,7),16);
+    fillPoly([v.A, v.D, v.H, v.E], sSR, sSG, sSB);
+    
+    // Base
+    const bR = parseInt(bottomColor.slice(1,3),16);
+    const bG = parseInt(bottomColor.slice(3,5),16);
+    const bB = parseInt(bottomColor.slice(5,7),16);
+    fillPoly([v.A, v.B, v.C, v.D], bR, bG, bB);
+    
+    // Parete destra (corta) - più chiara
+    fillPoly([v.B, v.C, v.G, v.F], Math.min(255, sSR+30), Math.min(255, sSG+30), Math.min(255, sSB+30));
+    
+    // Parete frontale (lunga) - più chiara
+    fillPoly([v.D, v.C, v.G, v.H], Math.min(255, sLR+20), Math.min(255, sLG+20), Math.min(255, sLB+20));
+    
+    // SFIDO come prolungamento orizzontale delle pareti
+    if (sfido > 0) {
+      const sfR = parseInt(sfidoColor.slice(1,3),16);
+      const sfG = parseInt(sfidoColor.slice(3,5),16);
+      const sfB = parseInt(sfidoColor.slice(5,7),16);
+      
+      // Vertici sfido (si estendono ORIZZONTALMENTE verso l'esterno dal bordo superiore)
+      const sfV = {
+        E_out: toIso(-sL/2, sD, -sW/2 - sSfidoIso),
+        F_out: toIso(sL/2, sD, -sW/2 - sSfidoIso),
+        G_out: toIso(sL/2, sD, sW/2 + sSfidoIso),
+        H_out: toIso(-sL/2, sD, sW/2 + sSfidoIso),
+        E_side: toIso(-sL/2 - sSfidoIso, sD, -sW/2),
+        F_side: toIso(sL/2 + sSfidoIso, sD, -sW/2),
+        G_side: toIso(sL/2 + sSfidoIso, sD, sW/2),
+        H_side: toIso(-sL/2 - sSfidoIso, sD, sW/2),
+      };
+      
+      // Sfido parete retro (lungo Z negativo) - scuro
+      fillPoly([v.E, v.F, sfV.F_out, sfV.E_out], Math.max(0, sfR-30), Math.max(0, sfG-30), Math.max(0, sfB-30));
+      
+      // Sfido parete sinistra (lungo X negativo)
+      fillPoly([v.E, sfV.E_side, sfV.H_side, v.H], Math.max(0, sfR-15), Math.max(0, sfG-15), Math.max(0, sfB-15));
+      
+      // Sfido parete destra (lungo X positivo) - chiaro
+      fillPoly([v.F, v.G, sfV.G_side, sfV.F_side], Math.min(255, sfR+15), Math.min(255, sfG+15), Math.min(255, sfB+15));
+      
+      // Sfido parete frontale (lungo Z positivo)
+      fillPoly([v.H, sfV.H_out, sfV.G_out, v.G], sfR, sfG, sfB);
+      
+      // Bordi sfido
+      pdf.setDrawColor(100, 70, 0);
+      pdf.setLineWidth(0.3);
+      pdf.line(sfV.E_out[0], sfV.E_out[1], sfV.F_out[0], sfV.F_out[1]);
+      pdf.line(sfV.F_side[0], sfV.F_side[1], sfV.G_side[0], sfV.G_side[1]);
+      pdf.line(sfV.G_out[0], sfV.G_out[1], sfV.H_out[0], sfV.H_out[1]);
+      pdf.line(sfV.H_side[0], sfV.H_side[1], sfV.E_side[0], sfV.E_side[1]);
+    }
+    
+    // Bordi scavo
+    pdf.setDrawColor(40, 40, 40);
+    pdf.setLineWidth(0.5);
+    [[v.A,v.B],[v.B,v.C],[v.C,v.D],[v.D,v.A]].forEach(([a,b]) => pdf.line(a[0],a[1],b[0],b[1]));
+    [[v.A,v.E],[v.B,v.F],[v.C,v.G],[v.D,v.H]].forEach(([a,b]) => pdf.line(a[0],a[1],b[0],b[1]));
+    
+    pdf.setLineDashPattern([2,1],0);
+    pdf.setDrawColor(80,80,80);
+    [[v.E,v.F],[v.F,v.G],[v.G,v.H],[v.H,v.E]].forEach(([a,b]) => pdf.line(a[0],a[1],b[0],b[1]));
+    pdf.setLineDashPattern([],0);
+    
+    // Legenda
+    yPos = 220;
+    pdf.setTextColor(30, 41, 59);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Legenda Superfici', margin, yPos);
+    yPos += 8;
+    
+    const legendData = [
+      { color: bottomColor, name: 'Base', area: bottomArea, qty: 1 },
+      { color: sideLongColor, name: 'Pareti Lunghe', area: sideLongArea, qty: 2 },
+      { color: sideShortColor, name: 'Pareti Corte', area: sideShortArea, qty: 2 },
+    ];
+    if (sfido > 0) {
+      legendData.push({ color: sfidoColor, name: 'Sfido (bordo sup.)', area: sfidoData.totale, qty: 1 });
+    }
+    
+    legendData.forEach(item => {
+      pdf.setFillColor(parseInt(item.color.slice(1,3),16), parseInt(item.color.slice(3,5),16), parseInt(item.color.slice(5,7),16));
+      pdf.rect(margin, yPos - 2.5, 12, 5, 'F');
+      pdf.setTextColor(71, 85, 105);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.text(item.name, margin + 16, yPos);
+      pdf.text(`${(item.area * item.qty).toFixed(1)} m²`, margin + 70, yPos);
+      yPos += 7;
+    });
+    
+    // Dimensioni
+    yPos += 5;
+    pdf.setFillColor(248, 250, 252);
+    pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 20, 2, 2, 'F');
+    pdf.setTextColor(71, 85, 105);
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Dimensioni Scavo:', margin + 5, yPos + 7);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`${length.toFixed(1)}m × ${width.toFixed(1)}m × ${depth.toFixed(1)}m (L×W×D)`, margin + 45, yPos + 7);
+    pdf.text(`Volume: ${(length*width*depth).toFixed(1)} m³`, margin + 120, yPos + 7);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(79, 70, 229);
+    pdf.text(`TOTALE TNT: ${totalAreaConSfido.toFixed(1)} m²`, margin + 5, yPos + 14);
+
+    // Footer
     pdf.setTextColor(148, 163, 184);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Pagina 2/2 - Vista 3D Isometrica | Documento generato da GeoViz Dynamic', pageWidth / 2, pageHeight - 8, { align: 'center' });
+    pdf.text('Pagina 2/2 - GeoViz Dynamic', pageWidth / 2, pageHeight - 5, { align: 'center' });
 
-    // Salva il PDF
     pdf.save(`GeoViz_Scavo_${now.toISOString().slice(0,10)}.pdf`);
   }, [dimensions, colors, totalArea, sfidoData, totalAreaConSfido]);
 

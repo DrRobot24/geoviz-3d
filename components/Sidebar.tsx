@@ -75,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <input 
                   type="number" 
                   step="0.1"
-                  min="0.1"
+                  min="0"
                   value={d.val}
                   onChange={(e) => handleDimChange(d.key as keyof ExcavationDimensions, e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
